@@ -15,9 +15,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         compiler: [gcc, clang, msvc, mingw]
-      exclude:
-        - os: ubuntu-latest
-          compiler: msvc  # Exclude MSVC on Linux
+        exclude:
+          - os: ubuntu-latest
+            compiler: msvc  # Exclude MSVC on Linux
 
     steps:
       - name: Checkout Repository
