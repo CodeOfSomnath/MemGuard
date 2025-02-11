@@ -1,4 +1,4 @@
-name: CMake Build and Test Runner two
+name: CMake Build and Test Runner
 
 on:
   push:
@@ -8,39 +8,75 @@ on:
 
 jobs:
   build:
-    name: Build and Test (Linux & Windows)
+    name: Build and Test (${{ matrix.os }} - ${{ matrix.compiler }})
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
+        compiler: [gcc, clang, msvc, mingw]
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Install Dependencies for Linux (GCC/Clang)
       - name: Install Dependencies (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y cmake gcc clang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+          if [[ "${{ matrix.compiler }}" == "gcc" ]]; then
+            sudo apt-get install -y gcc g++
+          elif [[ "${{ matrix.compiler }}" == "clang" ]]; then
+            sudo apt-get install -y clang clang-tools
+          fi
 
+      # Install Dependencies for Windows (MSVC, MinGW, Clang)
       - name: Install Dependencies (Windows)
         if: runner.os == 'Windows'
         run: |
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
           choco install ninja
+          if ("${{ matrix.compiler }}" -eq "mingw") {
+            choco install mingw
+          }
+          if ("${{ matrix.compiler }}" -eq "clang") {
+            choco install llvm
+          }
 
+      # Set Up MSVC Environment (Only for MSVC builds)
+      - name: Set Up MSVC Environment
+        if: matrix.compiler == 'msvc' && runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # Configure CMake based on Compiler
       - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Debug
+        run: |
+          if [[ "${{ matrix.compiler }}" == "gcc" ]]; then
+            cmake -B build -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+          elif [[ "${{ matrix.compiler }}" == "clang" ]]; then
+            cmake -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          elif [[ "${{ matrix.compiler }}" == "mingw" ]]; then
+            cmake -B build -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++
+          elif [[ "${{ matrix.compiler }}" == "msvc" ]]; then
+            cmake -B build -G "Ninja" -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl
+          else
+            cmake -B build
+          fi
 
+      # Build the Project
       - name: Build Project
         run: cmake --build build --config Debug
 
-      - name: Run Tests
+      # Run Tests (Linux)
+      - name: Run Tests (Linux)
         run: |
           cd build
           ./TestBasicFunctions || (echo "Test failed!" && exit 1)
         if: runner.os == 'Linux'
 
+      # Run Tests (Windows)
       - name: Run Tests (Windows)
         run: |
           cd build
