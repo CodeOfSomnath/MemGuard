@@ -1,12 +1,10 @@
-name: CMake Build and Test Runner
+name: CMake Build and Test Runner one
 
-on: 
+on:
   push:
-    branches:
-      - main
+    branches: [ "master" ]
   pull_request:
-    branches:
-      - main
+    branches: [ "master" ]
 
 jobs:
   build:
